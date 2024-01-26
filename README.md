@@ -503,7 +503,5 @@ In achieving my goal of creating a project entirely within the Azure ecosystem, 
 - [Spotipy Python Library](https://spotipy.readthedocs.io/en/2.22.1/#)
 - [Azure Data Factory For Data Engineers (Udemy Course)](https://www.udemy.com/course/learn-azure-data-factory-from-scratch/)
 
-## Development Video
-[![Development Video](img/thumbnail.png)]([https://example.com/your-video-link](https://www.youtube.com/playlist?list=PLT69ADY_Z1X-HnDpBfqrWy617EiF0PnPn))
 
-Click the thumbnail above to watch a video of the project development process.
+
