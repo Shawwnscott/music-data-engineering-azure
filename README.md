@@ -88,6 +88,66 @@ if __name__ == "__main__":
 
 ## Data Transformation
 
+I systematically transformed Spotify followed artist data by processing individual artists, handling associated genres, and establishing relationships between artists and genres. I utilized Spark for efficient large-scale data processing and incorporated runtime measurements to assess the processing times for different stages.
+
+#### Sample Script:
+
+```bash
+for line in lines:
+    # Load JSON data from the line
+    all_artists = json.loads(line)
+
+    # Iterate over each artist in the loaded data
+    for artist in all_artists['items']:
+        artist_count += 1
+        
+        artist_name = artist['name']
+        artist_id = artist['id']
+        artist_followers = int(artist['followers']['total'])
+        # Create a Spark DataFrame Row
+        artist_row = Row(ArtistID=artist_id, Name=artist_name, Followers=artist_followers)
+
+        # Append the Row to the artist DataFrame
+        df_artist = df_artist.union(spark.createDataFrame([artist_row], schema=artist_schema))
+        # Extract artist genres
+        artist_genre = artist['genres']
+        #unique_genres.update(artist_genre)
+        print(f"{artist_count}:{artist_name}")
+        
+        # Process genres using Spark operations
+        for genre_name in artist_genre:
+            genre_data.append(genre_name)      
+    
+    
+    print('-----------------------------------------------------------------------')
+
+# Convert genre_data to a set to get distinct values
+distinct_genre_data = set(genre_data)
+# Create a mapping of genre names to GenreID
+genre_id_mapping = {genre: i + 1 for i, genre in enumerate(distinct_genre_data)}
+# Create a list of Row objects for the DataFrame
+genre_rows = [Row(GenreID=genre_id, Name=genre) for genre, genre_id in genre_id_mapping.items()]
+# Add the rows to the existing df_genre DataFrame
+df_genre = df_genre.union(spark.createDataFrame(genre_rows, schema=genre_schema))
+
+# Record the end time
+main_end_time = time.time()
+# Calculate the total runtime
+total_run_time = main_end_time - main_start_time
+
+# Convert the elapsed time to minutes and seconds
+minutes, seconds = divmod(total_run_time, 60)
+# Print the runtime
+print(f"Total runtime: {int(minutes)} minutes and {round(seconds, 2)} seconds")
+
+
+```
+
+You can view the Complete Notebook Here:
+
+- [Artist Genre and ArtistGenre Transformation Notebook](Databricks/transform/Transform_Artist_Data_and_Create_Artist_Genre_ArtistGenre_Files.ipynb)
+
+
 ### Album Data
 
 ![Album Data Transformation](img/transform_album_data.PNG)
