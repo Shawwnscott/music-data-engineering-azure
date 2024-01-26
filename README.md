@@ -86,6 +86,83 @@ if __name__ == "__main__":
 
 #### Albums and Tracks
 
+## Data Transformation
+
+### Album Data
+
+![Album Data Transformation](img/transform_album_data.PNG)
+
+##### 1. Source Data Extraction (Two Instances):
+
+- Extract data from a source with a specific structure, described by the schema.
+- The source data includes information about albums, with various attributes like album type, artists, release date, etc.
+
+##### 2. Derive Artist ID:
+
+- Use a regular expression to extract the artist ID from the source data's 'href' field.
+- This is done for both instances of source data.
+
+##### 3. Flatten and Select Relevant Columns (Two Instances):
+
+- Flatten the data structure to make it more suitable for further processing.
+- Select specific columns like AlbumID, AlbumName, AlbumType, ReleaseDate, and TotalTracks.
+- This is done for both instances of source data.
+
+##### 4. Standardize Dates:
+
+- Check the length of the 'ReleaseDate' field. If it's four characters, assume it's a year and standardize it to '01/01/{year}'.
+- This is done to ensure a consistent date format.
+
+##### 5. Aggregate Distinct Rows:
+
+- Group data by 'AlbumID'.
+- For each group, keep the first row as distinct, discarding duplicates.
+
+##### 6. Sink Data (Two Instances):
+
+- Load the processed data into two separate sinks (destination systems).
+- The 'AlbumSink' receives data from the 'SelectReqFiles' transformation.
+- The 'ArtistAlbumSink' receives data from the 'SelectAlbArtID' transformation.
+
+
+### Track Data
+
+![Track Data Transformation](img/transform_track_data.PNG)
+
+#### 1.	Source Data Extraction:
+
+- Extract data from a source named "GetTrackJsons" with a specific schema, including fields like 'href', 'items', 'limit', 'next', 'offset', 'previous', and 'total'.
+- Allow schema drift and disable schema validation.
+
+#### 2. Derive Album ID:
+
+- Use a regular expression to extract the album ID from the 'href' field.
+- Name this derived column as 'AlbumID'.
+- This operation is performed using the 'DeriveAlbumIDColumn' transformation.
+
+#### 3. Flatten and Select Relevant Columns:
+
+- Flatten the data structure to make it more suitable for further processing.
+- Select specific columns like 'SongID', 'TrackNumber', 'Title', 'duration_ms', and 'AlbumID'.
+- This is done using the 'FlattenJSON' and 'SelectReqFields' transformations.
+
+#### 4. Convert Duration to Seconds:
+
+- Derive a new column named 'DurationInSeconds' by converting 'duration_ms' to seconds.
+- Use the 'ConvertDurationToSeconds' transformation for this operation.
+
+#### 5. Update Required Fields:
+
+- Select and rename columns to match the final desired structure.
+- Columns include 'SongID', 'TrackNumber', 'Title', 'DurationInSeconds', and 'AlbumID'.
+- This is achieved using the 'UpdateReqFields' transformation.
+
+#### 6. Sink Processed Data:
+
+- Load the processed data into a sink named "TrackSink," which is associated with a dataset reference named "ds_processed_track_sink."
+- Allow schema drift, disable schema validation, and specify umask, preCommands, and postCommands configurations for the sink operation.
+
+
 ## Workflow Automation
 
 The pipeline operates with two triggers, adding a layer of automation to the overall process. The first trigger initiates the creation of the database when the file containing followed artists' data is placed into Blob Storage. 
@@ -94,7 +171,7 @@ The pipeline operates with two triggers, adding a layer of automation to the ove
 {
     "name": "tr_followed_artist_data_arrived",
     "properties": {
-        "description": "The "tr_followed_artist_data_arrived" trigger is a Blob Events Trigger that triggers the "pl_execute_all" pipeline when new blobs are created in the "/followed-artist-data/blobs/followed_artists_list.json" path within the specified Azure Storage account. ",
+        "description": "The \"tr_followed_artist_data_arrived\" trigger is a Blob Events Trigger that triggers the \"pl_execute_all\" pipeline when new blobs are created in the \"/followed-artist-data/blobs/followed_artists_list.json\" path within the specified Azure Storage account.",
         "annotations": [],
         "runtimeState": "Started",
         "pipelines": [
@@ -152,7 +229,7 @@ The second trigger is activated at the end of each week when the weekly song dat
 
 During the development of the ETL pipeline, I encountered several challenges that tested my problem-solving skills and adaptability. While the specifics might not be remembered in detail, I can outline the general types of challenges faced:
 
-![Followed Artist Trigger](docs/architecture_diagram.png)
+
 
 ### Authentication with Spotify API
 
