@@ -502,3 +502,8 @@ In achieving my goal of creating a project entirely within the Azure ecosystem, 
 - [How to Mount Azure Storage to Databricks](https://techcommunity.microsoft.com/t5/azure-paas-blog/mount-adls-gen2-or-blob-storage-in-azure-databricks/ba-p/3802926) or [Azure Databricks Documentation](https://learn.microsoft.com/en-us/azure/databricks/dbfs/mounts)
 - [Spotipy Python Library](https://spotipy.readthedocs.io/en/2.22.1/#)
 - [Azure Data Factory For Data Engineers (Udemy Course)](https://www.udemy.com/course/learn-azure-data-factory-from-scratch/)
+
+## Development Video
+[![Development Video](https://example.com/thumbnail.jpg)]([https://example.com/your-video-link](https://www.youtube.com/playlist?list=PLT69ADY_Z1X-HnDpBfqrWy617EiF0PnPn))
+
+Click the thumbnail above to watch a video of the project development process.
