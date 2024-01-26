@@ -3,7 +3,7 @@
 ## Purpose
 
 The primary purpose of this ETL pipeline is to reinforce the foundational data principles acquired through self-study, my master's program and practical internship experience. Drawing on the knowledge and skills developed, the project aims to apply these principles to the real-world scenario of building a music database. By extracting, transforming, and loading data from Spotify's API, the pipeline serves as a hands-on application of data management concepts. This project is a steppingstone to solidify my understanding of data processing, analytics, and storage.
-## Prerequisites
+
 
 ## Scope and Goals
 
@@ -40,17 +40,18 @@ Before running the ETL pipeline, make sure you have the necessary dependencies i
 
 ```bash
 pip install spotipy  # Python library for Spotify API
-# Add other dependencies as needed
 ```
 ## Data Extraction
+
 ### Source of Data
+
 Data is sourced from Spotify's API and a custom Python script generating fictional values for song streams and downloads.
 
 Data Extraction Code
 
 #### User-Followed Artist Data
 
-```bash
+```python
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import json
@@ -86,13 +87,78 @@ if __name__ == "__main__":
 
 #### Albums and Tracks
 
+The Albums and Tracks data extracts occurs similarly. 
+
+![Album Data Ingestion](img/albums_ingestion_pipeline.PNG)
+
+#### 1. Copy ArtistIDs
+
+- Extracts ArtistIDs from a SQL database and stores them in a delimited text file on Azure Blob Storage.
+
+#### 2. Validate Token
+
+- Executes a pipeline ("pl_get_token") to validate and obtain an authentication token.
+
+#### 3. Capture Token
+
+- Captures the authentication token obtained from the "Validate Token" step.
+
+#### 4. Set Artist ID Index
+
+- Sets the initial artist ID index to 0.
+
+#### 5. Until Album Ingest Notebook Success
+
+- Loops until the Databricks notebook ("Ingest Albums") successfully runs.
+- The notebook is parameterized with the captured token and artist ID index.
+
+![Album Data Ingestion 2](img/albums_ingestion_pipeline2.PNG)
+
+#### 5. Ingest Albums
+
+- Executes a Databricks notebook to ingest albums data, using the captured token and artist ID index.
+
+#### 6. Get Error Log
+
+- Retrieves error information if the "Ingest Albums" step fails.
+
+#### 7. Copy Log
+
+- Copies error logs to another dataset for further analysis.
+
+#### 8. Delete From Blob
+
+- Deletes data from the original error log storage if specific conditions are met.
+
+#### 9. Get Response
+
+- Retrieves the response code from the error log.
+
+#### 10. Get ArtistID Index
+
+- Retrieves the current artist ID index from the error log.
+
+#### 11. If Response Code 429
+
+- Checks if the response code indicates a rate limit exceeded.
+- If true, waits for a specified time, refreshes the token, and updates variables accordingly.
+
+#### 12. If Response Code 401
+
+- Checks if the response code indicates unauthorized access.
+- If true, refreshes the token.
+
+
+
 ## Data Transformation
+
+### Album Data
 
 I systematically transformed Spotify followed artist data by processing individual artists, handling associated genres, and establishing relationships between artists and genres. I utilized Spark for efficient large-scale data processing and incorporated runtime measurements to assess the processing times for different stages.
 
 #### Sample Script:
 
-```bash
+```python
 for line in lines:
     # Load JSON data from the line
     all_artists = json.loads(line)
@@ -222,6 +288,30 @@ You can view the Complete Notebook Here:
 - Load the processed data into a sink named "TrackSink," which is associated with a dataset reference named "ds_processed_track_sink."
 - Allow schema drift, disable schema validation, and specify umask, preCommands, and postCommands configurations for the sink operation.
 
+### Weekly Data
+
+![Weekly Data Transformation](img/transform_weekly_data.PNG)
+
+#### 1. Source Data Extraction (Two Instances):
+
+- Extract data from two sources named "GetWeeklyJSON" and "GetWeeklyJSON2," both associated with the same dataset reference named "ds_weekly_data_raw."
+- The source data includes information about songs, with attributes like 'song_id' and 'weekly_data.'
+
+#### 2. Flatten and Select Relevant Columns (Two Instances):
+
+- For the first instance:
+  - Flatten the nested structure of 'weekly_data' to make it more suitable for further processing.
+  - Select specific columns like 'WeekID,' 'SongID,' 'WeekStartDate,' 'WeekEndDate,' and 'WeeklyStreams.'
+
+- For the second instance:
+  - Flatten the nested structure of 'weekly_data' again.
+  - Select specific columns like 'WeekID,' 'SongID,' 'WeekStartDate,' 'WeekEndDate,' and 'TotalWeeklyDownloads.'
+
+#### 3. Sink Processed Data (Two Instances):
+
+- Load the processed data into two separate sinks.
+  - The "StreamSink" receives data from the first instance's transformation.
+  - The "DownloadSink" receives data from the second instance's transformation.
 
 ## Workflow Automation
 
@@ -285,11 +375,83 @@ The second trigger is activated at the end of each week when the weekly song dat
 }
 ```
 
+## Weekly Data ETL
+
+After the database is created we put together the weekly streams and downloads etl pipeline. This is to be ran each sunday when new simulated weekly data is genereated into blob storage.
+
+![Weekly Data ETL](img/weekly_data_etl.PNG)
+
+To Generate weekly data i just wrote a Python script that defines a function called generate_weekly_data. This function generates simulated weekly download and stream data for a provided list of songs. To accomplish this, I used the datetime, timedelta, numpy (as np), and json modules. For each of the 52 weeks in a year, the script randomly generates mean and standard deviation values for downloads and streams for each song. Then, it generates random numbers following a normal distribution based on these parameters.
+
+The script formats the data, including the week number, start and end dates, total weekly downloads, and total weekly streams. It saves this information for each song in separate JSON files, with one file for each week. I've also included two auxiliary functions: get_week_dates, which determines the start and end dates of a given week, and write_to_file, which writes data to JSON files.
+
+I adopted this approach because Spotify does not provide streaming and download numbers for individual songs on their platform. They only offer aggregate data for an artist's top 5 songs or so. This script serves as a workaround to simulate and generate the desired data.
+
+**Sample Code:**
+
+```python
+def generate_weekly_data(song_list):
+    # Get the current year and week
+    current_year, _, _ = datetime.now().isocalendar()
+
+    for week_number in range(1, 53):
+        weekly_data = {"songs": []}
+
+        for song in song_list:
+            # Generate random mean and standard deviation for downloads and streams
+            downloads_mean = np.random.uniform(30000, 70000)
+            downloads_std = np.random.uniform(10000, 30000)
+
+            streams_mean = np.random.uniform(400000, 800000)
+            streams_std = np.random.uniform(150000, 300000)
+
+            # Generate random numbers for downloads and streams using a normal distribution
+            total_weekly_downloads = int(np.random.normal(downloads_mean, downloads_std))
+            total_weekly_streams = int(np.random.normal(streams_mean, streams_std))
+
+            # Ensure the generated numbers are non-negative
+            total_weekly_downloads = max(total_weekly_downloads, 0)
+            total_weekly_streams = max(total_weekly_streams, 0)
+
+            # Get the start and end dates of the week
+            start_date, end_date = get_week_dates(current_year, week_number)
+
+            # Append the data to the weekly_data list
+            song_data = {
+                "song_id": song,
+                "weekly_data": {
+                    "week": week_number,
+                    "week_start_date": start_date.strftime('%Y-%m-%d'),
+                    "week_end_date": end_date.strftime('%Y-%m-%d'),
+                    "total_weekly_downloads": total_weekly_downloads,
+                    "total_weekly_streams": total_weekly_streams
+                }
+            }
+
+            weekly_data["songs"].append(song_data)
+
+        # Save data for each week separately
+        write_to_file(weekly_data, f'weekly_data_week_{week_number}.json')
+```
+
+```python
+# Rest of your code remains unchanged
+def get_week_dates(year, week_number):
+    start_date = datetime(year, 1, 1)
+    start_of_week = start_date + timedelta(days=(week_number - 1) * 7 - start_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    return start_of_week, end_of_week
+
+def write_to_file(data, file_name):
+    with open(file_name, 'w') as file:
+        json.dump(data, file, indent=2)
+```
+
+
+
 ## Challenges Faced
 
 During the development of the ETL pipeline, I encountered several challenges that tested my problem-solving skills and adaptability. While the specifics might not be remembered in detail, I can outline the general types of challenges faced:
-
-
 
 ### Authentication with Spotify API
 
@@ -332,3 +494,11 @@ In achieving my goal of creating a project entirely within the Azure ecosystem, 
 4. **Working with APIs:** Interacting with Spotify's API introduced me to the intricacies of API usage, including authentication and data extraction.
 5. **Understanding ETL:** The project deepened my comprehension of ETL (Extract, Transform, Load) processes, emphasizing their significance in data engineering.
 
+## Resources
+
+- [Spotify for Developers](https://developer.spotify.com/documentation/web-api)
+- [Azure Data Factory Documentation](https://learn.microsoft.com/en-us/azure/data-factory/)
+- [How to Use Spotify's API with Python](https://www.youtube.com/watch?v=WAmEZBEeNmg&t=567s)
+- [How to Mount Azure Storage to Databricks](https://techcommunity.microsoft.com/t5/azure-paas-blog/mount-adls-gen2-or-blob-storage-in-azure-databricks/ba-p/3802926) or [Azure Databricks Documentation](https://learn.microsoft.com/en-us/azure/databricks/dbfs/mounts)
+- [Spotipy Python Library](https://spotipy.readthedocs.io/en/2.22.1/#)
+- [Azure Data Factory For Data Engineers (Udemy Course)](https://www.udemy.com/course/learn-azure-data-factory-from-scratch/)
