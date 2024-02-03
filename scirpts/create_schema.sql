@@ -14,7 +14,7 @@ CREATE TABLE Genre (
 
 -- Create Artist_Genre table
 CREATE TABLE Artist_Genre (
-    ID INT PRIMARY KEY,
+    ID INT IDENTITY(1,1) PRIMARY KEY,
     ArtistID VARCHAR(255),
     GenreID INT,
     FOREIGN KEY (ArtistID) REFERENCES Artist(ArtistID),
